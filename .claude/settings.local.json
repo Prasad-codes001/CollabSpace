@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(timeout 10 npx tsx src/server.ts)",
+      "Bash(npx tsx *)",
+      "Bash(kill %1)",
+      "Bash(MONGODB_URI=\"\" JWT_SECRET=\"\" node --import tsx src/server.ts)",
+      "Bash(node --import tsx -e ' *)",
+      "Bash(npm ls *)",
+      "Bash(node --import tsx test-phases4-5.mjs)",
+      "Bash(taskkill //F //FI \"WINDOWTITLE eq node*\")",
+      "Bash(lsof -ti:8000)",
+      "Bash(xargs kill -9)",
+      "Bash(netstat -ano)",
+      "Bash(node --import tsx test-phase7.mjs)",
+      "mcp__ide__getDiagnostics",
+      "Bash(curl -s http://localhost:8000/api/v1/health)",
+      "Read(//tmp/**)",
+      "Bash(PORT=8000 npx tsx src/server.ts)",
+      "Bash(disown)",
+      "Bash(curl -v http://localhost:8000/api/v1/health)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(node -e ' *)",
+      "Bash(npx vite *)",
+      "Bash(npm run *)"
+    ]
+  }
+}

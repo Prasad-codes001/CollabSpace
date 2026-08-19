@@ -1,0 +1,334 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-serif: 'Playfair Display', Georgia, serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #FAF8F5;
+    color: #1C1917;
+    overflow-x: hidden;
+  }
+}
+
+/* Custom Typography & Utility Classes */
+.font-serif-editorial {
+  font-family: var(--font-serif);
+}
+
+.font-sans-ui {
+  font-family: var(--font-sans);
+}
+
+/* Subtle Document Canvas Shadow */
+.shadow-editorial {
+  box-shadow: 0 4px 20px -2px rgba(28, 25, 23, 0.05), 0 2px 6px -1px rgba(28, 25, 23, 0.03);
+}
+
+.shadow-editorial-hover {
+  box-shadow: 0 12px 32px -4px rgba(28, 25, 23, 0.08), 0 4px 12px -2px rgba(28, 25, 23, 0.04);
+}
+
+.shadow-paper {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 16px 40px -8px rgba(28, 25, 23, 0.07);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FAF8F5;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #E7E5E4;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #D6D3D1;
+}
+
+/* Animations */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(0.98); }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 4s ease-in-out infinite;
+}
+
+@keyframes cursor-float {
+  0%, 100% { transform: translateY(0px) translateX(0px); }
+  50% { transform: translateY(-4px) translateX(3px); }
+}
+
+.animate-cursor-float {
+  animation: cursor-float 3s ease-in-out infinite;
+}
+
+/* ─────────────────────────────────────────
+   PHASE 19: ACCESSIBILITY
+───────────────────────────────────────── */
+
+/* Skip to main content link */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 1rem;
+  z-index: 9999;
+  padding: 0.5rem 1rem;
+  background: #1C1917;
+  color: #FAF8F5;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 0 0 0.75rem 0.75rem;
+  text-decoration: none;
+  transition: top 0.2s;
+}
+.skip-link:focus {
+  top: 0;
+}
+
+/* Global focus ring — visible only for keyboard users */
+:focus-visible {
+  outline: 2px solid #D97706;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Remove outline for mouse users */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─────────────────────────────────────────
+   PHASE 20: FINAL VISUAL POLISH
+───────────────────────────────────────── */
+
+/* Global smooth transitions for interactive elements */
+button,
+a,
+select,
+input,
+textarea {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Premium button press feedback */
+button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+}
+
+/* Smooth page section transitions */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.4s ease-out forwards;
+}
+
+/* Staggered children animations */
+.animate-stagger > * {
+  opacity: 0;
+  animation: fade-up 0.35s ease-out forwards;
+}
+.animate-stagger > *:nth-child(1) { animation-delay: 0ms;   }
+.animate-stagger > *:nth-child(2) { animation-delay: 60ms;  }
+.animate-stagger > *:nth-child(3) { animation-delay: 120ms; }
+.animate-stagger > *:nth-child(4) { animation-delay: 180ms; }
+.animate-stagger > *:nth-child(5) { animation-delay: 240ms; }
+.animate-stagger > *:nth-child(6) { animation-delay: 300ms; }
+
+/* Shimmer effect for skeleton loaders */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #F4F0EA 25%, #EFECE8 50%, #F4F0EA 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: rgba(250, 248, 245, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(231, 229, 228, 0.6);
+}
+
+/* Gradient text utility */
+.text-gradient-amber {
+  background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Elegant divider with label */
+.divider-label {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: #A8A29E;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.divider-label::before,
+.divider-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #E7E5E4;
+}
+
+/* Selection color */
+::selection {
+  background-color: #FDE68A;
+  color: #1C1917;
+}
+
+.ProseMirror {
+  outline: none;
+}
+
+.ProseMirror > * + * {
+  margin-top: 1.2em;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: #A8A29E;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.ProseMirror h1 {
+  font-family: var(--font-serif);
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #1C1917;
+  margin-bottom: 0.5em;
+}
+
+.ProseMirror h2 {
+  font-family: var(--font-serif);
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #1C1917;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.ProseMirror h3 {
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #1C1917;
+  margin-top: 1.2em;
+  margin-bottom: 0.5em;
+}
+
+.ProseMirror p {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: #44403C;
+}
+
+.ProseMirror a {
+  color: #D97706;
+  text-decoration: underline;
+  text-decoration-color: rgba(217, 119, 6, 0.3);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.2s;
+}
+
+.ProseMirror a:hover {
+  text-decoration-color: #D97706;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid #D97706;
+  padding-left: 1.2rem;
+  margin-left: 0;
+  margin-right: 0;
+  font-style: italic;
+  color: #57534E;
+  background-color: #FAF8F5;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  padding: 0 1rem;
+}
+
+.ProseMirror ul {
+  list-style-type: disc;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+}
+
+.ProseMirror code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background-color: #F4F0EA;
+  color: #D97706;
+  padding: 0.2em 0.4em;
+  border-radius: 0.3em;
+}
+
+.ProseMirror pre {
+  background-color: #1C1917;
+  color: #FAF8F5;
+  font-family: var(--font-mono);
+  padding: 1.2rem;
+  border-radius: 0.8rem;
+  overflow-x: auto;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+.ProseMirror pre code {
+  background-color: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
