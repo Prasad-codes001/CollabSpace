@@ -18,6 +18,7 @@ import { WorkspaceDetail } from './components/workspace/WorkspaceDetail';
 import { DocumentEditor } from './components/editor/DocumentEditor';
 import { documentService } from './services/documentService';
 import { useMouseParallax } from './hooks/useMouseParallax';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { Sparkles, X } from 'lucide-react';
 import type { DashboardTab } from './components/dashboard/Sidebar';
 import type { Workspace } from './types/workspace';
@@ -231,7 +232,9 @@ function AppContent() {
 export function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <ErrorBoundary>
+        <AppContent />
+      </ErrorBoundary>
     </AuthProvider>
   );
 }
