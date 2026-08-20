@@ -16,8 +16,21 @@ export function errorHandler(
     return;
   }
 
-  // Log unexpected errors in development
-  if (env.NODE_ENV === 'development') {
+  if (err.name === 'MulterError') {
+    const multerError = err as Error & { code?: string };
+    const message = multerError.code === 'LIMIT_FILE_SIZE'
+      ? 'File is too large (maximum 10MB)'
+      : err.message;
+    res.status(400).json({ status: 'error', message });
+    return;
+  }
+
+  if (err.message === 'Unexpected field') {
+    res.status(400).json({ status: 'error', message: 'Upload field is missing or invalid' });
+    return;
+  }
+
+  if (env.NODE_ENV !== 'test') {
     console.error(err);
   }
 

@@ -19,7 +19,9 @@ const documentFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFil
     'text/markdown',
     'text/plain',
   ];
-  if (allowed.includes(file.mimetype)) {
+  const extension = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
+  const allowedExtensions = ['.pdf', '.docx', '.md'];
+  if (allowedExtensions.includes(extension) && (allowed.includes(file.mimetype) || !file.mimetype)) {
     cb(null, true);
   } else {
     cb(new ApiError(400, 'Only PDF, DOCX, and Markdown files are allowed'));
