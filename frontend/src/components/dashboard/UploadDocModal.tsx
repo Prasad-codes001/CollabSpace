@@ -19,8 +19,6 @@ export const UploadDocModal: React.FC<UploadDocModalProps> = ({ isOpen, onClose,
   const [errorMsg, setErrorMsg] = useState('');
   const [isDragging, setIsDragging] = useState(false);
 
-  if (!isOpen) return null;
-
   const resetState = () => {
     setUploadState('idle');
     setUploadProgress(0);
@@ -80,6 +78,8 @@ export const UploadDocModal: React.FC<UploadDocModalProps> = ({ isOpen, onClose,
     const file = e.dataTransfer.files?.[0];
     if (file) handleFile(file);
   }, []);
+
+  if (!isOpen) return null;
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
