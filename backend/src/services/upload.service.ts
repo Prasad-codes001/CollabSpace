@@ -5,6 +5,7 @@ import { env } from '../config/env.js';
 import { User } from '../models/User.js';
 import { Document } from '../models/Document.js';
 import { ApiError } from '../utils/ApiError.js';
+import { extractPdfText, extractDocxText, convertDocxToHtml } from '../services/extractText.service';
 
 const hasCloudinary = !!(env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET);
 
@@ -33,6 +34,41 @@ async function storeFile(buffer: Buffer, folder: string, originalName: string, m
   return { url: `/uploads/${folder}/${filename}` };
 }
 
+function determineDocType(mimeType: string): 'pdf' | 'docx' | 'markdown' {
+  if (mimeType.includes('pdf')) return 'pdf';
+  if (mimeType.includes('word') || mimeType.includes('docx')) return 'docx';
+  if (mimeType.includes('markdown') || mimeType === 'text/plain') return 'markdown';
+  return 'pdf';
+}
+
+async function extractTextFromFile(
+  buffer: Buffer,
+  mimeType: string
+): Promise<{ text: string; html: string; type: 'pdf' | 'docx' | 'markdown' }> {
+  const type = determineDocType(mimeType);
+
+  switch (type) {
+    case 'pdf': {
+      const data = await pdfParse(buffer);
+      return { text: data.text || '', html: data.text || '', type };
+    }
+    case 'docx': {
+      const html = convertDocxToHtml(buffer.toString('utf-8'));
+      const text = html
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .trim();
+      return { text, html, type };
+    }
+    case 'markdown': {
+      // For markdown files, read as text and keep as-is
+      return { text: buffer.toString('utf-8'), html: buffer.toString('utf-8'), type };
+    }
+    default:
+      return { text: '', html: '', type: 'pdf' };
+  }
+}
+
 export const uploadService = {
   async uploadAvatar(userId: string, file: Express.Multer.File) {
     const result = await storeFile(file.buffer, 'avatars', file.originalname, file.mimetype);
@@ -57,11 +93,12 @@ export const uploadService = {
     const result = await storeFile(file.buffer, 'documents', file.originalname, file.mimetype);
 
     // Determine document type from mimetype
-    let type: 'pdf' | 'docx' | 'markdown' = 'pdf';
-    if (file.mimetype.includes('word')) type = 'docx';
-    else if (file.mimetype.includes('markdown') || file.mimetype === 'text/plain') type = 'markdown';
+    const type = determineDocType(file.mimetype);
 
-    // Create a document record for the uploaded file
+    // Extract text and HTML content from the uploaded file
+    const { text, html } = await extractTextFromFile(file.buffer, file.mimetype);
+
+    // Create a document record for the uploaded file with extracted content
     const title = file.originalname.replace(/\.[^/.]+$/, '');
     const user = await User.findById(userId);
     if (!user) throw new ApiError(404, 'User not found');
@@ -70,7 +107,7 @@ export const uploadService = {
       title,
       type,
       owner: userId,
-      content: [{ id: `blk_${Date.now()}`, type: 'paragraph', content: `Uploaded file: ${file.originalname}` }],
+      content: [{ id: `blk_${Date.now()}`, type: 'paragraph', content: html || title }],
       collaborators: [{ user: userId, role: 'OWNER' }],
       fileUrl: result.url,
     });

@@ -720,7 +720,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
               </div>
             </div>
           ) : (
-            <div className="max-w-4xl mx-auto my-8 bg-[#FFFFFF] rounded-2xl border border-[#E7E5E4] shadow-paper min-h-[70vh] relative w-full flex-1">
+            <div className="max-w-4xl mx-auto my-8 bg-[#FFFFFF] rounded-2xl border border-[#E7E5E4] shadow-paper relative w-full flex-1">
               <EditorContent editor={editor} />
               {lockedNotice && (
                 <div className="absolute top-4 right-4 z-20 flex items-center gap-2 bg-[#1C1917] text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-xl animate-in fade-in duration-200">
