@@ -261,7 +261,6 @@ const { user, updateUser } = useAuth();
               </div>
             </div>
             <div className="mt-6 pt-5 border-t border-[#E7E5E4] space-y-1">
-              <p className="text-xs text-[#78716C]"><span className="font-semibold text-[#1C1917]">Name:</span> {user?.name}</p>
               <p className="text-xs text-[#78716C]"><span className="font-semibold text-[#1C1917]">Email:</span> {user?.email}</p>
               <p className="text-xs text-[#78716C]"><span className="font-semibold text-[#1C1917]">Role:</span> {user?.role || 'MEMBER'}</p>
             </div>
