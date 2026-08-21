@@ -120,14 +120,15 @@ export const documentService = {
           query = {
             isTrashed: false,
             workspaceId,
-            ...accessible,
           };
         }
         break;
       default:
+        // My Documents: exclude workspace documents (workspaceId should not exist)
         query = {
           isTrashed: false,
           ...accessible,
+          workspaceId: { $exists: false },
         };
     }
 

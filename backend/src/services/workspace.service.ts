@@ -141,7 +141,7 @@ export const workspaceService = {
       throw new ApiError(403, 'Only the workspace owner can send invitations');
     }
 
-    // Check if the invited user already exists and is already a member
+    // Check if the invited user already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       const alreadyMember = workspace.members.some(
@@ -150,6 +150,24 @@ export const workspaceService = {
       if (alreadyMember) {
         throw new ApiError(409, 'User is already a member of this workspace');
       }
+
+      // Auto-add existing user to workspace
+      workspace.members.push({
+        user: existingUser._id,
+        role,
+        joinedAt: new Date(),
+      });
+      await workspace.save();
+
+      // Return member info directly
+      return {
+        id: existingUser._id.toString(),
+        name: existingUser.name,
+        email: existingUser.email,
+        avatarUrl: existingUser.avatarUrl || null,
+        role,
+        joinedAt: new Date().toISOString(),
+      };
     }
 
     // Check for pending invitation to the same email for this workspace

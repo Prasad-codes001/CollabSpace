@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Users, FileText, Activity, Info, UserPlus, Crown, Shield, User as UserIcon, Trash2 } from 'lucide-react';
+import { ArrowLeft, Users, FileText, Activity, Info, UserPlus, Crown, Shield, User as UserIcon, Trash2, Plus } from 'lucide-react';
 import { workspaceService } from '../../services/workspaceService';
 import { documentService } from '../../services/documentService';
 import { activityService } from '../../services/activityService';
 import { useAuth } from '../../context/AuthContext';
 import { InviteMemberModal } from './InviteMemberModal';
 import { DocumentGrid } from '../dashboard/DocumentGrid';
+import { NewDocModal } from '../dashboard/NewDocModal';
 import type { Workspace, WorkspaceMember } from '../../types/workspace';
 import type { DocumentItem } from '../../types/document';
 import type { ActivityItem } from '../../types/activity';
@@ -33,6 +34,7 @@ export const WorkspaceDetail: React.FC<WorkspaceDetailProps> = ({ workspace, onB
   const [wsDocs, setWsDocs] = useState<DocumentItem[]>([]);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [newDocOpen, setNewDocOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -59,8 +61,11 @@ export const WorkspaceDetail: React.FC<WorkspaceDetailProps> = ({ workspace, onB
 
   const handleInvite = async (email: string, role: WorkspaceMember['role']) => {
     try {
-      const newMember = await workspaceService.inviteMember(workspace.id, email, role);
-      setMembers(prev => [...prev, newMember]);
+      await workspaceService.inviteMember(workspace.id, email, role);
+      const updatedMembers = await workspaceService.getWorkspaceMembers(workspace.id);
+      setMembers(updatedMembers);
+      setActionError('Invitation sent successfully');
+      setTimeout(() => setActionError(null), 4000);
     } catch (err: any) {
       setActionError(err?.message || 'Failed to invite member');
       setTimeout(() => setActionError(null), 4000);
@@ -78,6 +83,21 @@ export const WorkspaceDetail: React.FC<WorkspaceDetailProps> = ({ workspace, onB
     } finally {
       setDeleting(false);
       setDeleteConfirmOpen(false);
+    }
+  };
+
+  const handleCreateDoc = async (title: string, type: DocumentItem['type']) => {
+    try {
+      const doc = await documentService.createDocument(title, type, workspace.id);
+      setNewDocOpen(false);
+      // Refresh workspace documents
+      const docs = await documentService.getDocuments();
+      setWsDocs(docs.filter(d => d.workspaceId === workspace.id));
+      // Open the new document in editor
+      onOpenDoc(doc);
+    } catch (err: any) {
+      setActionError(err?.message || 'Failed to create document');
+      setTimeout(() => setActionError(null), 4000);
     }
   };
 
@@ -208,16 +228,30 @@ export const WorkspaceDetail: React.FC<WorkspaceDetailProps> = ({ workspace, onB
 
             {/* Documents Tab */}
             {activeTab === 'documents' && (
-              <DocumentGrid
-                documents={wsDocs}
-                viewMode="grid"
-                emptyTitle="No documents in this workspace"
-                emptyDesc="Create a document and assign it to this workspace."
-                onOpen={onOpenDoc}
-                onStar={handleWsDocStar}
-                onRename={() => {}}
-                onDelete={handleWsDocDelete}
-              />
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-serif-editorial text-lg font-bold text-[#1C1917]">
+                    Documents <span className="font-normal text-base text-[#57534E]">({wsDocs.length})</span>
+                  </h3>
+                  <button
+                    onClick={() => setNewDocOpen(true)}
+                    className="inline-flex items-center gap-1.5 bg-[#1C1917] hover:bg-[#292524] text-[#FAF8F5] text-xs font-semibold px-4 py-2 rounded-xl shadow-xs transition-colors"
+                  >
+                    <Plus className="w-4 h-4 text-[#D97706]" />
+                    Create Document
+                  </button>
+                </div>
+                <DocumentGrid
+                  documents={wsDocs}
+                  viewMode="grid"
+                  emptyTitle="No documents in this workspace"
+                  emptyDesc="Create a document and assign it to this workspace."
+                  onOpen={onOpenDoc}
+                  onStar={handleWsDocStar}
+                  onRename={() => {}}
+                  onDelete={handleWsDocDelete}
+                />
+              </div>
             )}
 
             {/* Members Tab */}
@@ -306,6 +340,12 @@ export const WorkspaceDetail: React.FC<WorkspaceDetailProps> = ({ workspace, onB
         workspaceName={workspace.name}
         onClose={() => setInviteOpen(false)}
         onInvite={handleInvite}
+      />
+
+      <NewDocModal
+        isOpen={newDocOpen}
+        onClose={() => setNewDocOpen(false)}
+        onCreate={handleCreateDoc}
       />
 
       {/* Delete Confirmation Dialog */}

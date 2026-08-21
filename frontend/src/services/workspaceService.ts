@@ -43,6 +43,12 @@ export const workspaceService = {
   },
   async inviteMember(workspaceId: string, email: string, role: WorkspaceMember['role'] = 'VIEWER'): Promise<WorkspaceMember> {
     const data = await apiClient.post<any>(`/workspaces/${workspaceId}/invitations`, { email, role });
+    // Backend returns member info for existing users, or invitation for new users
+    if (data.name && data.email && data.role) {
+      // Member was added directly
+      return transformMember(data);
+    }
+    // Invitation was created - return placeholder until accepted
     return { id: data.id || data._id || '', name: email.split('@')[0], email, role, joinedAt: new Date().toISOString() };
   },
   async removeMember(workspaceId: string, userId: string): Promise<void> {

@@ -11,7 +11,6 @@ import {
   Settings,
   LogOut,
   Activity,
-  ShieldCheck,
   Plus,
   Upload
 } from 'lucide-react';
@@ -24,7 +23,6 @@ export type DashboardTab =
   | 'shared'
   | 'workspaces'
   | 'activity'
-  | 'admin'
   | 'recent'
   | 'starred'
   | 'trash'
@@ -55,7 +53,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'shared', label: 'Shared With Me', icon: Users },
     { id: 'workspaces', label: 'Workspaces', icon: FolderKanban },
     { id: 'activity', label: 'Activity Log', icon: Activity },
-    { id: 'admin', label: 'Admin Console', icon: ShieldCheck },
     { id: 'recent', label: 'Recent', icon: Clock },
     { id: 'starred', label: 'Starred', icon: Star },
     { id: 'trash', label: 'Trash', icon: Trash2 },
@@ -142,9 +139,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="flex flex-col truncate">
               <span className="text-xs font-semibold text-[#1C1917] truncate">
                 {user?.name || 'User'}
-              </span>
-              <span className="text-[10px] text-[#78716C] font-mono uppercase font-bold">
-                {user?.role || 'MEMBER'}
               </span>
             </div>
           </div>

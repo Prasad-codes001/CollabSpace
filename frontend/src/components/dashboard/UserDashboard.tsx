@@ -5,8 +5,6 @@ import { DocumentGrid } from './DocumentGrid';
 import { NewDocModal } from './NewDocModal';
 import { UploadDocModal } from './UploadDocModal';
 import { ActivityFeed } from './ActivityFeed';
-import { AdminDashboard } from '../admin/AdminDashboard';
-import { PermissionDenied } from '../auth/PermissionDenied';
 import { DocumentSkeleton } from '../ui/States';
 import { documentService } from '../../services/documentService';
 import { useAuth } from '../../context/AuthContext';
@@ -218,7 +216,6 @@ const { user, updateUser } = useAuth();
     shared: 'Shared With Me',
     workspaces: 'Workspaces',
     activity: 'Activity Log',
-    admin: 'Admin Console',
     recent: 'Recently Edited',
     starred: 'Starred',
     trash: 'Trash',
@@ -285,26 +282,6 @@ const { user, updateUser } = useAuth();
         />
         <div className="flex-1">
           <ActivityFeed />
-        </div>
-      </div>
-    );
-  }
-
-  if (activeTab === 'admin') {
-    return (
-      <div className="flex-1 flex flex-col min-h-screen bg-[#FAF8F5]">
-        <Header
-          searchQuery={searchQuery} onSearchChange={setSearchQuery}
-          viewMode={viewMode} onViewModeChange={setViewMode}
-          sortBy={sortBy} onSortChange={setSortBy}
-          filterType={filterType} onFilterChange={setFilterType}
-        />
-        <div className="flex-1">
-          {user?.role === 'ADMIN' ? (
-            <AdminDashboard />
-          ) : (
-            <PermissionDenied requiredRole="Admin" onBack={() => onTabChange('home')} />
-          )}
         </div>
       </div>
     );

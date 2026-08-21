@@ -12,7 +12,6 @@ import documentRoutes from './routes/document.routes.js';
 import activityRoutes from './routes/activity.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import chatRoutes from './routes/chat.routes.js';
-import adminRoutes from './routes/admin.routes.js';
 
 const app = express();
 
@@ -35,7 +34,6 @@ app.use('/api/v1/documents', documentRoutes);
 app.use('/api/v1/activities', activityRoutes);
 app.use('/api/v1/upload', uploadRoutes);
 app.use('/api/v1/documents', chatRoutes);
-app.use('/api/v1/admin', adminRoutes);
 
 // --- 404 Handler ---
 app.use((_req, _res, next) => {
