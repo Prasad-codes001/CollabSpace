@@ -276,7 +276,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     editable: selectedVersionId === 'v_curr',
     editorProps: {
       attributes: {
-        class: 'prose prose-stone prose-lg max-w-none focus:outline-none min-h-[60vh] px-12 py-10 sm:px-16 md:px-20 lg:px-24',
+        class: 'prose prose-stone prose-lg max-w-none focus:outline-none px-12 py-10 sm:px-16 md:px-20 lg:px-24',
       },
     },
     onUpdate: ({ editor }) => {
