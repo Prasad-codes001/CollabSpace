@@ -76,6 +76,10 @@ export const documentService = {
     const docs = await apiClient.get<any[]>('/documents?filter=shared');
     return docs.map(transformDocList);
   },
+  async getWorkspaceDocuments(workspaceId: string): Promise<DocumentItem[]> {
+    const docs = await apiClient.get<any[]>(`/documents?filter=workspace&workspaceId=${workspaceId}`);
+    return docs.map(transformDocList);
+  },
   async joinDocument(docId: string): Promise<{ role: string }> {
     return apiClient.post<{ role: string }>(`/documents/${docId}/join`, {});
   },

@@ -44,14 +44,13 @@ export const WorkspaceDetail: React.FC<WorkspaceDetailProps> = ({ workspace, onB
     setLoading(true);
     Promise.all([
       workspaceService.getWorkspaceMembers(workspace.id),
-      documentService.getDocuments(),
+      documentService.getWorkspaceDocuments(workspace.id),
       activityService.getActivities(),
     ]).then(([m, docs, acts]) => {
       setMembers(m);
-      const workspaceDocs = docs.filter(d => d.workspaceId === workspace.id);
-      setWsDocs(workspaceDocs);
+      setWsDocs(docs);
       // Filter activities to those related to this workspace's documents
-      const wsDocIds = new Set(workspaceDocs.map(d => d.id));
+      const wsDocIds = new Set(docs.map(d => d.id));
       setActivities(acts.filter(a =>
         (a.target.type === 'workspace' && a.target.id === workspace.id) ||
         (a.target.type === 'document' && wsDocIds.has(a.target.id))
@@ -90,9 +89,9 @@ export const WorkspaceDetail: React.FC<WorkspaceDetailProps> = ({ workspace, onB
     try {
       const doc = await documentService.createDocument(title, type, workspace.id);
       setNewDocOpen(false);
-      // Refresh workspace documents
-      const docs = await documentService.getDocuments();
-      setWsDocs(docs.filter(d => d.workspaceId === workspace.id));
+      // Refresh workspace documents using workspace filter
+      const docs = await documentService.getWorkspaceDocuments(workspace.id);
+      setWsDocs(docs);
       // Open the new document in editor
       onOpenDoc(doc);
     } catch (err: any) {
