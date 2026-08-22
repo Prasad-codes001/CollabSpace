@@ -12,9 +12,11 @@ type RequestOptions = {
   body?: unknown;
 };
 
-function handleUnauthorized() {
-  localStorage.removeItem('collabspace_token');
-  localStorage.removeItem('collabspace_user');
+function handleUnauthorized(isSessionExpired: boolean) {
+  if (isSessionExpired) {
+    localStorage.removeItem('collabspace_token');
+    localStorage.removeItem('collabspace_user');
+  }
   window.dispatchEvent(new Event('collabspace:unauthorized'));
 }
 
@@ -33,7 +35,16 @@ async function request<T>(method: string, path: string, options: RequestOptions 
 
   if (!res.ok) {
     if (res.status === 401) {
-      handleUnauthorized();
+      const errorData = await res.json().catch(() => ({ message: '' }));
+      const errorMsg = (errorData.message || '').toLowerCase();
+      
+      // If it's an invalid credential error, show warning but keep token
+      if (errorMsg.includes('invalid email or password')) {
+        throw new Error('Invalid credentials');
+      }
+      
+      // Otherwise, treat as session expired
+      handleUnauthorized(true);
       throw new UnauthorizedError();
     }
 
@@ -58,7 +69,16 @@ async function upload<T>(path: string, formData: FormData): Promise<T> {
 
   if (!res.ok) {
     if (res.status === 401) {
-      handleUnauthorized();
+      const errorData = await res.json().catch(() => ({ message: '' }));
+      const errorMsg = (errorData.message || '').toLowerCase();
+      
+      // If it's an invalid credential error, show warning but keep token
+      if (errorMsg.includes('invalid email or password')) {
+        throw new Error('Invalid credentials');
+      }
+      
+      // Otherwise, treat as session expired
+      handleUnauthorized(true);
       throw new UnauthorizedError();
     }
 
