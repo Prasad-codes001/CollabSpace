@@ -34,7 +34,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onSucces
       await login(email, password);
       onSuccess();
     } catch (err: any) {
-      setError(err?.message || 'Authentication failed. Please check your credentials.');
+      const errorMsg = err?.message || 'Authentication failed. Please check your credentials.';
+      // Show "Invalid credentials" for authentication failures from the backend
+      setError(errorMsg.includes('invalid email or password') ? 'Invalid credentials' : errorMsg);
     } finally {
       setIsSubmitting(false);
     }
