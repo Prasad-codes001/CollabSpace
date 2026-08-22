@@ -47,10 +47,8 @@ interface UserDashboardProps {
   activeTab: DashboardTab;
   onOpenDoc: (doc: DocumentItem) => void;
   newDocModalOpen: boolean;
-  uploadDocModalOpen: boolean;
   onOpenNewDoc: () => void;
   onCloseNewDoc: () => void;
-  onCloseUpload: () => void;
   onTabChange: (tab: DashboardTab) => void;
 }
 
@@ -383,12 +381,6 @@ const { user, updateUser } = useAuth();
         isOpen={newDocModalOpen}
         onClose={onCloseNewDoc}
         onCreate={handleCreateDoc}
-      />
-
-      <UploadDocModal
-        isOpen={uploadDocModalOpen}
-        onClose={onCloseUpload}
-        onUploadComplete={handleUploadComplete}
       />
 
       {renameTarget && (

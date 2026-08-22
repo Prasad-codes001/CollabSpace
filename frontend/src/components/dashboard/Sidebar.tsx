@@ -11,8 +11,7 @@ import {
   Settings,
   LogOut,
   Activity,
-  Plus,
-  Upload
+  Plus
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { UserAvatar } from '../ui/UserAvatar';
@@ -83,13 +82,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <Plus className="w-4 h-4 text-[#D97706]" />
             <span>New Document</span>
-          </button>
-          <button
-            onClick={onUploadDoc}
-            className="w-full flex items-center justify-center gap-2 bg-[#F4F0EA] hover:bg-[#E7E5E4] text-[#1C1917] text-xs font-semibold py-2 px-4 rounded-xl border border-[#E7E5E4] transition-all"
-          >
-            <Upload className="w-3.5 h-3.5 text-[#57534E]" />
-            <span>Upload File</span>
           </button>
         </div>
 

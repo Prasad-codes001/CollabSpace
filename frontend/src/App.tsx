@@ -43,7 +43,6 @@ function AppContent() {
   // Dashboard state
   const [activeTab, setActiveTab] = useState<DashboardTab>('home');
   const [newDocOpen, setNewDocOpen] = useState(false);
-  const [uploadOpen, setUploadOpen] = useState(false);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [activeDoc, setActiveDoc] = useState<DocumentItem | null>(null);
 
@@ -110,7 +109,6 @@ function AppContent() {
             setActiveDoc(null);
           }}
           onNewDoc={() => setNewDocOpen(true)}
-          onUploadDoc={() => setUploadOpen(true)}
           onLogout={() => {
             logout();
             setActiveTab('home');
@@ -157,7 +155,6 @@ function AppContent() {
                   uploadDocModalOpen={uploadOpen}
                   onOpenNewDoc={() => setNewDocOpen(true)}
                   onCloseNewDoc={() => setNewDocOpen(false)}
-                  onCloseUpload={() => setUploadOpen(false)}
                   onTabChange={setActiveTab}
                 />
               )}
