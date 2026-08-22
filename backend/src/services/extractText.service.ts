@@ -1,23 +1,24 @@
+function decodeXmlText(value: string): string {
+  return value
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+}
+
+function extractParagraphs(xmlString: string): string[] {
+  return [...xmlString.matchAll(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g)]
+    .map((match) => [...match[1].matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g)]
+      .map((textMatch) => decodeXmlText(textMatch[1]))
+      .join(''))
+    .filter(Boolean);
+}
+
 export function extractDocxText(xmlString: string): string {
   try {
-    const doc = Document.load(xmlString);
-    const paragraphs: string[] = [];
-
-    doc.forEach((element: any) => {
-      if (element.type === 'paragraph') {
-        const textRuns: string[] = [];
-        element.forEach((child: any) => {
-          if (child.type === 'text') {
-            textRuns.push(child.text);
-          }
-        });
-        if (textRuns.length > 0) {
-          paragraphs.push(textRuns.join(''));
-        }
-      }
-    });
-
-    return paragraphs.join('\n\n');
+    return extractParagraphs(xmlString).join('\n\n');
   } catch (error) {
     console.error('DOCX extraction error:', error);
     return '';
@@ -26,32 +27,7 @@ export function extractDocxText(xmlString: string): string {
 
 export function convertDocxToHtml(xmlString: string): string {
   try {
-    const doc = Document.load(xmlString);
-    const htmlParts: string[] = [];
-
-    doc.forEach((element: any) => {
-      if (element.type === 'paragraph') {
-        const children: any[] = [];
-        element.forEach((child: any) => {
-          if (child.type === 'text') {
-            children.push({ type: 'text', text: child.text });
-          }
-        });
-
-        let text = '';
-        children.forEach((child: any) => {
-          if (child.type === 'text') {
-            text += child.text;
-          }
-        });
-
-        if (text) {
-          htmlParts.push(`<p>${text}</p>`);
-        }
-      }
-    });
-
-    return htmlParts.join('\n');
+    return extractParagraphs(xmlString).map((text) => `<p>${text}</p>`).join('\n');
   } catch (error) {
     console.error('DOCX to HTML conversion error:', error);
     return '';

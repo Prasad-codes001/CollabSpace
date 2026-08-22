@@ -5,7 +5,8 @@ import { env } from '../config/env.js';
 import { User } from '../models/User.js';
 import { Document } from '../models/Document.js';
 import { ApiError } from '../utils/ApiError.js';
-import { extractPdfText, extractDocxText, convertDocxToHtml } from '../services/extractText.service';
+import { PDFParse } from 'pdf-parse';
+import { convertDocxToHtml } from '../services/extractText.service.js';
 
 const hasCloudinary = !!(env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET);
 
@@ -49,8 +50,13 @@ async function extractTextFromFile(
 
   switch (type) {
     case 'pdf': {
-      const data = await pdfParse(buffer);
-      return { text: data.text || '', html: data.text || '', type };
+      const parser = new PDFParse({ data: buffer });
+      try {
+        const data = await parser.getText();
+        return { text: data.text || '', html: data.text || '', type };
+      } finally {
+        await parser.destroy();
+      }
     }
     case 'docx': {
       const html = convertDocxToHtml(buffer.toString('utf-8'));
