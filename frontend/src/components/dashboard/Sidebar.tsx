@@ -31,7 +31,6 @@ interface SidebarProps {
   activeTab: DashboardTab;
   onTabChange: (tab: DashboardTab) => void;
   onNewDoc: () => void;
-  onUploadDoc: () => void;
   onLogout: () => void;
   onLogoClick?: () => void;
 }
@@ -40,7 +39,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onTabChange,
   onNewDoc,
-  onUploadDoc,
   onLogout,
   onLogoClick,
 }) => {

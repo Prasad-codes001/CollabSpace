@@ -152,7 +152,6 @@ function AppContent() {
                   activeTab={activeTab}
                   onOpenDoc={(doc) => setActiveDoc(doc)}
                   newDocModalOpen={newDocOpen}
-                  uploadDocModalOpen={uploadOpen}
                   onOpenNewDoc={() => setNewDocOpen(true)}
                   onCloseNewDoc={() => setNewDocOpen(false)}
                   onTabChange={setActiveTab}

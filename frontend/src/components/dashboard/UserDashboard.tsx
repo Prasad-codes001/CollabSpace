@@ -3,7 +3,6 @@ import { Clock, Star, Users, FileText } from 'lucide-react';
 import { Header } from './Header';
 import { DocumentGrid } from './DocumentGrid';
 import { NewDocModal } from './NewDocModal';
-import { UploadDocModal } from './UploadDocModal';
 import { ActivityFeed } from './ActivityFeed';
 import { DocumentSkeleton } from '../ui/States';
 import { documentService } from '../../services/documentService';
@@ -54,8 +53,7 @@ interface UserDashboardProps {
 
 export const UserDashboard: React.FC<UserDashboardProps> = ({
   activeTab, onOpenDoc,
-  newDocModalOpen, uploadDocModalOpen,
-  onOpenNewDoc, onCloseNewDoc, onCloseUpload, onTabChange
+  newDocModalOpen, onOpenNewDoc, onCloseNewDoc, onTabChange
 }) => {
 const { user, updateUser } = useAuth();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
@@ -200,11 +198,6 @@ const { user, updateUser } = useAuth();
     } catch (err: any) {
       showError(err, 'Failed to rename document');
     }
-  };
-
-  const handleUploadComplete = async () => {
-    // The upload endpoint already creates the document record — just refresh the list.
-    await reload();
   };
 
   // Section title
