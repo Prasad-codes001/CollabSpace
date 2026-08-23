@@ -11,3 +11,7 @@ uploads/
 
 # Personal interview preparation — never commit this
 COLLABSPACE_INTERVIEW_GUIDE.md
+
+# Local agent metadata & instructions
+CONTEXT.txt
+.claude/
