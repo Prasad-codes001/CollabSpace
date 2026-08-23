@@ -8,3 +8,6 @@ dist-ssr/
 uploads/
 .vercel/
 .DS_Store
+
+# Personal interview preparation — never commit this
+COLLABSPACE_INTERVIEW_GUIDE.md
