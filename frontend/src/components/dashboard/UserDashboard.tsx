@@ -7,6 +7,7 @@ import { ActivityFeed } from './ActivityFeed';
 import { DocumentSkeleton } from '../ui/States';
 import { documentService } from '../../services/documentService';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { apiClient } from '../../api/client';
 import { UserAvatar } from '../ui/UserAvatar';
 import type { DocumentItem } from '../../types/document';
@@ -56,6 +57,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   newDocModalOpen, onOpenNewDoc, onCloseNewDoc, onTabChange
 }) => {
 const { user, updateUser } = useAuth();
+const { theme, toggleTheme } = useTheme();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [trashedDocs, setTrashedDocs] = useState<DocumentItem[]>([]);
   const [sharedDocs, setSharedDocs] = useState<DocumentItem[]>([]);
@@ -254,6 +256,24 @@ const { user, updateUser } = useAuth();
             <div className="mt-6 pt-5 border-t border-[#E7E5E4] space-y-1">
               <p className="text-xs text-[#78716C]"><span className="font-semibold text-[#1C1917]">Email:</span> {user?.email}</p>
               <p className="text-xs text-[#78716C]"><span className="font-semibold text-[#1C1917]">Role:</span> {user?.role || 'MEMBER'}</p>
+            </div>
+          </div>
+          <div className="bg-white border border-[#E7E5E4] rounded-2xl p-6 shadow-sm mt-6">
+            <p className="font-semibold text-sm text-[#1C1917]">Appearance</p>
+            <p className="text-xs text-[#78716C] mt-1 mb-4">Choose how CollabSpace looks. Preference is saved and persists after refresh.</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#1C1917]">{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</p>
+                <p className="text-xs text-[#78716C]">{theme === 'dark' ? 'Easier on the eyes in low light' : 'Bright and clear for daytime work'}</p>
+              </div>
+              <button
+                onClick={toggleTheme}
+                aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+                className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors bg-[#E7E5E4] dark:bg-[#44403C]"
+                style={{ backgroundColor: theme === 'dark' ? '#1C1917' : '#E7E5E4' }}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
             </div>
           </div>
         </div>

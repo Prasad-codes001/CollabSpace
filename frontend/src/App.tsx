@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { FullPageLoader } from './components/ui/States';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
@@ -227,11 +228,13 @@ function AppContent() {
 
 export function App() {
   return (
-    <AuthProvider>
-      <ErrorBoundary>
-        <AppContent />
-      </ErrorBoundary>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <ErrorBoundary>
+          <AppContent />
+        </ErrorBoundary>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

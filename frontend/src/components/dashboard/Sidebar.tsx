@@ -11,9 +11,12 @@ import {
   Settings,
   LogOut,
   Activity,
-  Plus
+  Plus,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { UserAvatar } from '../ui/UserAvatar';
 
 export type DashboardTab =
@@ -43,6 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogoClick,
 }) => {
   const { user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const mainNav = [
     { id: 'home', label: 'Home', icon: Home },
@@ -110,6 +114,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Footer Profile & Settings */}
       <div className="p-4 border-t border-[#E7E5E4] space-y-3">
+        <button
+          onClick={toggleTheme}
+          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-[#57534E] hover:bg-[#F4F0EA] hover:text-[#1C1917] transition-colors border border-transparent hover:border-[#E7E5E4]"
+        >
+          <span className="flex items-center gap-3">
+            {theme === 'light' ? <Moon className="w-4 h-4 text-[#78716C]" /> : <Sun className="w-4 h-4 text-[#D97706]" />}
+            <span>{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
+          </span>
+          <span className={`w-8 h-4 rounded-full p-0.5 flex items-center transition-colors ${theme === 'dark' ? 'bg-[#1C1917] justify-end' : 'bg-[#E7E5E4] justify-start'}`}>
+            <span className="w-3 h-3 bg-white dark:bg-[#FAF8F5] rounded-full shadow-xs block" />
+          </span>
+        </button>
         <button
           onClick={() => onTabChange('settings')}
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${

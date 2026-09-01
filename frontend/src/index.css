@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   :root {
@@ -13,6 +14,57 @@
     color: #1C1917;
     overflow-x: hidden;
   }
+
+  html.dark body {
+    background-color: #0C0A09;
+    color: #FAF8F5;
+  }
+}
+
+/* Dark mode: override hardcoded light colors with dark equivalents.
+   Uses html.dark + Tailwind arbitrary value escaping. Keeps minimal changes. */
+@layer utilities {
+  html.dark .bg-\[\#FAF8F5\] { background-color: #1C1917 !important; }
+  html.dark .bg-\[\#FFFFFF\] { background-color: #292524 !important; }
+  html.dark .bg-white { background-color: #292524 !important; }
+  html.dark .bg-\[\#F4F0EA\] { background-color: #2E2A28 !important; }
+  html.dark .bg-\[\#EFECE8\] { background-color: #2E2A28 !important; }
+  html.dark .bg-\[\#FEF2F2\] { background-color: #450A0A !important; }
+  html.dark .bg-\[\#EFF6FF\] { background-color: #1E293B !important; }
+  html.dark .bg-\[\#FEF3C7\] { background-color: #422006 !important; }
+
+  html.dark .text-\[\#1C1917\] { color: #FAF8F5 !important; }
+  html.dark .text-\[\#57534E\] { color: #D6D3D1 !important; }
+  html.dark .text-\[\#78716C\] { color: #A8A29E !important; }
+  html.dark .text-\[\#A8A29E\] { color: #79716B !important; }
+  html.dark .text-\[\#44403C\] { color: #D6D3D1 !important; }
+  html.dark .text-\[\#1D4ED8\] { color: #93C5FD !important; }
+  html.dark .text-\[\#92400E\] { color: #FDE68A !important; }
+
+  html.dark .border-\[\#E7E5E4\] { border-color: #44403C !important; }
+  html.dark .border-\[\#F5F5F4\] { border-color: #44403C !important; }
+  html.dark .border-\[\#D6D3D1\] { border-color: #57534E !important; }
+  html.dark .border-\[\#FCA5A5\] { border-color: #7F1D1D !important; }
+  html.dark .border-\[\#3B82F6\]\/30 { border-color: rgb(59 130 246 / 0.3) !important; }
+  html.dark .border-\[\#F59E0B\] { border-color: #92400E !important; }
+
+  html.dark ::-webkit-scrollbar-track { background: #1C1917; }
+  html.dark ::-webkit-scrollbar-thumb { background: #44403C; }
+  html.dark ::-webkit-scrollbar-thumb:hover { background: #57534E; }
+  html.dark ::selection { background-color: #92400E; color: #FAF8F5; }
+
+  /* ProseMirror dark */
+  html.dark .ProseMirror h1,
+  html.dark .ProseMirror h2,
+  html.dark .ProseMirror h3 { color: #FAF8F5 !important; }
+  html.dark .ProseMirror p { color: #D6D3D1 !important; }
+  html.dark .ProseMirror blockquote { background-color: #1C1917 !important; border-left-color: #D97706 !important; color: #D6D3D1 !important; }
+  html.dark .ProseMirror code { background-color: #44403C !important; color: #FDBA74 !important; }
+  html.dark .ProseMirror pre { background-color: #0C0A09 !important; color: #FAF8F5 !important; }
+  html.dark .ProseMirror a { color: #F59E0B !important; }
+
+  html.dark .skeleton-shimmer { background: linear-gradient(90deg, #292524 25%, #44403C 50%, #292524 75%); background-size: 200% 100%; }
+  html.dark .glass { background: rgba(28,25,23,0.8); border-color: rgba(68,64,60,0.6); }
 }
 
 /* Custom Typography & Utility Classes */

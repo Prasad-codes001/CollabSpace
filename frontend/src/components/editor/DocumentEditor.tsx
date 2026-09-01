@@ -258,7 +258,20 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       remoteTimerRef.current = null;
       const pending = pendingRemoteRef.current;
       pendingRemoteRef.current = null;
-      if (pending) applyRemoteContent(pending);
+      if (pending) {
+        if (!editorRef.current) {
+          // Editor not ready yet (initial mount race) — keep pending for next tick
+          pendingRemoteRef.current = pending;
+          remoteTimerRef.current = setTimeout(() => {
+            remoteTimerRef.current = null;
+            const retry = pendingRemoteRef.current;
+            pendingRemoteRef.current = null;
+            if (retry) applyRemoteContent(retry);
+          }, 100);
+          return;
+        }
+        applyRemoteContent(pending);
+      }
     }, 100);
   };
 
@@ -387,10 +400,16 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     editorRef.current = editor;
   }, [editor]);
 
-  // Fetch the full document (with blocks + collaborators) on mount
+  // Pending fetch html when editor not yet ready (mount race). Applied once editor mounts.
+  const pendingFetchHtmlRef = useRef<string | null>(null);
+
+  // Fetch the full document (with blocks + collaborators) on mount — DB is source of truth.
   useEffect(() => {
     let cancelled = false;
     setDocLoading(true);
+    // Reset per-document state: new doc means stale remote flag must not suppress its DB load.
+    appliedRemoteRef.current = false;
+    pendingFetchHtmlRef.current = null;
     documentService.getDocumentById(doc.id).then((fullDoc) => {
       if (cancelled || !fullDoc) return;
       setLocalDoc(fullDoc);
@@ -403,23 +422,42 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
             : (fullDoc.collaborators.find(c => c.id === myId)?.role || null);
         if (role) setDocRole(role);
       }
-      if (editor) {
+      const html = blocksToHtml(fullDoc.blocks);
+      // Always prefer DB content on initial open; only suppress if we already have
+      // fresher live content via socket (appliedRemoteRef) AND fetch html equals default placeholder.
+      // Never overwrite live edits with stale DB, but never keep default placeholder when DB has real content.
+      const isDefaultHtml = html === '<h1>Untitled Document</h1><p>Start writing here...</p>';
+      const shouldApply = !appliedRemoteRef.current || !isDefaultHtml;
+      if (editor && shouldApply) {
         // A remote socket update may already have applied while this REST call
-        // was in flight — never let the (possibly stale) REST response clobber
-        // the fresher real-time content.
-        if (!appliedRemoteRef.current) {
-          const html = blocksToHtml(fullDoc.blocks);
+        // was in flight — only suppress if remote is fresher than DB.
+        if (!appliedRemoteRef.current || html !== lastSentHtmlRef.current) {
           isRemoteUpdate.current = true;
           editor.commands.setContent(html, { emitUpdate: false });
           isRemoteUpdate.current = false;
           lastSentHtmlRef.current = html;
         }
+      } else if (!editor && shouldApply) {
+        pendingFetchHtmlRef.current = html;
       }
     }).catch(() => {}).finally(() => {
       if (!cancelled) setDocLoading(false);
     });
     return () => { cancelled = true; };
   }, [doc.id, editor]);
+
+  // If fetch completed before editor was ready, apply pending html once editor mounts
+  useEffect(() => {
+    if (editor && pendingFetchHtmlRef.current && !appliedRemoteRef.current) {
+      const html = pendingFetchHtmlRef.current;
+      pendingFetchHtmlRef.current = null;
+      isRemoteUpdate.current = true;
+      editor.commands.setContent(html, { emitUpdate: false });
+      isRemoteUpdate.current = false;
+      lastSentHtmlRef.current = html;
+      setDocLoading(false);
+    }
+  }, [editor]);
 
   // Socket.IO connection
   useEffect(() => {
@@ -459,8 +497,9 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     });
 
     socket.on('document:content-updated', (data: { userId: string; html: string }) => {
-      if (data.userId === userRef.current?.id) return;
       if (typeof data.html !== 'string') return;
+      // Allow same-user multi-tab sync: server already excludes sender socket via socket.to(),
+      // so we must NOT filter by userId here. Otherwise second tab of same account never receives.
       scheduleRemoteApply(data.html);
     });
 
