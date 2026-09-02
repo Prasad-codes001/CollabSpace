@@ -9,12 +9,13 @@ export function htmlToBlocks(html: string): DocumentBlock[] {
 
 // Convert persisted blocks back to editor HTML. Handles both the canonical
 // "blk_main" blob (raw HTML) and legacy multi-block documents.
-export function blocksToHtml(blocks: DocumentBlock[] | undefined): string {
+export function blocksToHtml(blocks: DocumentBlock[] | undefined, defaultTitle?: string): string {
   if (!blocks || blocks.length === 0) {
-    return '<h1>Untitled Document</h1><p>Start writing here...</p>';
+    const title = defaultTitle ? defaultTitle : 'Untitled Document';
+    return `<h1>${title}</h1><p></p>`;
   }
-  if (blocks.length === 1 && blocks[0].id === 'blk_main' && blocks[0].content.startsWith('<')) {
-    return blocks[0].content;
+  if (blocks.length === 1 && blocks[0].id === 'blk_main') {
+    return blocks[0].content || `<h1>${defaultTitle || 'Untitled Document'}</h1><p></p>`;
   }
   return blocks
     .map((block) => {

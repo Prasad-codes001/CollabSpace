@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -68,19 +68,18 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const titleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lockReleaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const remoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Guards against race conditions and false saves
   const isRemoteUpdate = useRef(false);
+  const isInitialLoadingRef = useRef(true);
   const redirectingRef = useRef(false);
   const myLockBlockRef = useRef<string | null>(null);
-  // Set once a remote socket update has been applied, so the initial REST fetch
-  // never overwrites fresher real-time content (stale-REST race).
-  const appliedRemoteRef = useRef(false);
-
-  // Latest remote HTML that we have not yet applied (coalesced at ~100ms).
-  const pendingRemoteRef = useRef<string | null>(null);
-  // Last HTML we actually emitted, so we never re-broadcast an identical payload.
   const lastSentHtmlRef = useRef('');
+  const lastSavedHtmlRef = useRef('');
+  const lastSavedTitleRef = useRef(doc.title);
+  const saveSequenceRef = useRef(0);
+  const pendingRemoteRef = useRef<string | null>(null);
 
-  // Refs mirroring state so the editor callbacks (created once) always read fresh values
   const locksRef = useRef(locks);
   useEffect(() => { locksRef.current = locks; }, [locks]);
   const userRef = useRef(user);
@@ -90,8 +89,6 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const canEditRef = useRef(!isReadOnly);
   useEffect(() => { canEditRef.current = !isReadOnly; }, [isReadOnly]);
 
-  // The document owner is the only one allowed to invite/change-role/remove
-  // collaborators — the backend enforces this too (403 otherwise).
   const isOwner = user?.id === localDoc.ownerId;
 
   const getBlockIdAtSelection = (): string | null => {
@@ -119,9 +116,6 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     return found;
   };
 
-  // Acquire (or keep) the lock on the block the user is currently editing.
-  // The lock auto-releases 2.5s after the last keystroke/selection change,
-  // so it represents "this person is typing here" rather than a permanent claim.
   const acquireLock = (blockId: string) => {
     if (!canEditRef.current || !userRef.current) return;
 
@@ -133,7 +127,6 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       const blockIndex = getBlockIndexAtSelection();
       socketRef.current?.emit('block:lock', { documentId: doc.id, blockId, blockIndex }, (res: any) => {
         if (res && !res.ok && myLockBlockRef.current === blockId) {
-          // Another user got the lock first — drop our claim.
           myLockBlockRef.current = null;
         }
       });
@@ -175,15 +168,6 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     return target;
   };
 
-  // Apply a collaborator's HTML update reliably. Block ids are NOT guaranteed to
-  // match between users (each editor instance assigns its own random ids), so we
-  // never rely on id-based matching. Instead:
-  //  - Same top-level block count → replace blocks positionally (skipping the
-  //    block this user is actively typing in). This also adopts the sender's
-  //    block ids, so ids converge across clients.
-  //  - Different block count (a block was added/removed) → adopt the remote
-  //    document wholesale so the structure stays consistent.
-  // Remote applies are guarded with isRemoteUpdate so they never re-broadcast.
   const applyRemoteContent = (html: string) => {
     const ed = editorRef.current;
     if (!ed) return;
@@ -196,7 +180,6 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       const dom = new DOMParser().parseFromString(html, 'text/html');
       incomingDoc = ProseMirrorDOMParser.fromSchema(ed.schema).parse(dom.body);
     } catch {
-      // Unparseable content — skip this broadcast; the next valid one applies.
       return;
     }
 
@@ -232,25 +215,21 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       ops.sort((a, b) => b.start - a.start);
       for (const op of ops) tr.replaceWith(op.start, op.end, op.node);
 
-      appliedRemoteRef.current = true;
       isRemoteUpdate.current = true;
       ed.view.dispatch(tr);
       isRemoteUpdate.current = false;
       lastSentHtmlRef.current = ed.getHTML();
+      lastSavedHtmlRef.current = ed.getHTML();
       return;
     }
 
-    // Structural change (block added/removed) → adopt the remote doc wholesale
-    // so the order/ids stay consistent across all connected editors.
-    appliedRemoteRef.current = true;
     isRemoteUpdate.current = true;
     ed.commands.setContent(html, { emitUpdate: false });
     isRemoteUpdate.current = false;
     lastSentHtmlRef.current = html;
+    lastSavedHtmlRef.current = html;
   };
 
-  // Coalesce rapid collab broadcasts so the editor is not re-written on every
-  // single keystroke of the other user — the main cause of "laggy" typing.
   const scheduleRemoteApply = (html: string) => {
     pendingRemoteRef.current = html;
     if (remoteTimerRef.current) return;
@@ -260,7 +239,6 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       pendingRemoteRef.current = null;
       if (pending) {
         if (!editorRef.current) {
-          // Editor not ready yet (initial mount race) — keep pending for next tick
           pendingRemoteRef.current = pending;
           remoteTimerRef.current = setTimeout(() => {
             remoteTimerRef.current = null;
@@ -275,25 +253,56 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     }, 100);
   };
 
+  // Immediate flush for pending changes when navigating away or unmounting
+  const flushPendingSave = useCallback(async () => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    if (titleTimerRef.current) {
+      clearTimeout(titleTimerRef.current);
+      titleTimerRef.current = null;
+    }
+
+    const ed = editorRef.current;
+    if (!ed || !canEditRef.current || isInitialLoadingRef.current) return;
+
+    const currentHtml = ed.getHTML();
+    if (currentHtml && currentHtml !== lastSavedHtmlRef.current) {
+      try {
+        lastSavedHtmlRef.current = currentHtml;
+        await documentService.saveContent(doc.id, htmlToBlocks(currentHtml));
+      } catch (err) {
+        console.error('Failed to flush content save:', err);
+      }
+    }
+  }, [doc.id]);
+
+  const handleBack = async () => {
+    await flushPendingSave();
+    onBack();
+  };
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
-      Placeholder.configure({ placeholder: 'Press "/" for commands, or start typing...' }),
+      Placeholder.configure({ placeholder: 'Start writing here...' }),
       UnderlineExt,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Highlight.configure({ multicolor: true }),
       Link.configure({ openOnClick: false }),
       BlockId,
     ],
-    content: blocksToHtml(localDoc.blocks),
+    content: '',
     editable: selectedVersionId === 'v_curr',
     editorProps: {
       attributes: {
-        class: 'prose prose-stone prose-lg max-w-none focus:outline-none px-12 py-10 sm:px-16 md:px-20 lg:px-24',
+        class: 'prose prose-stone prose-lg max-w-none focus:outline-none px-12 py-10 sm:px-16 md:px-20 lg:px-24 dark:prose-invert',
       },
     },
     onUpdate: ({ editor }) => {
-      if (isRemoteUpdate.current) return;
+      // Guard: Never save during initial document loading or remote updates
+      if (isRemoteUpdate.current || isInitialLoadingRef.current) return;
       setSaveStatus('unsaved');
 
       const html = editor.getHTML();
@@ -316,16 +325,22 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(async () => {
         setSaveStatus('saving');
+        const seq = ++saveSequenceRef.current;
         try {
           await documentService.saveContent(doc.id, htmlToBlocks(html));
-          setSaveStatus('saved');
+          if (seq === saveSequenceRef.current) {
+            lastSavedHtmlRef.current = html;
+            setSaveStatus('saved');
+          }
         } catch {
-          setSaveStatus('unsaved');
+          if (seq === saveSequenceRef.current) {
+            setSaveStatus('unsaved');
+          }
         }
-      }, 2000);
+      }, 1500);
     },
     onSelectionUpdate: ({ editor }) => {
-      if (!userRef.current || !socketRef.current) return;
+      if (!userRef.current || !socketRef.current || isInitialLoadingRef.current) return;
       const { view } = editor;
       const { selection } = view.state;
       if (!selection) return;
@@ -334,7 +349,6 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       if (blockId) {
         const lock = locksRef.current[blockId];
         if (lock && lock.userId !== userRef.current.id) {
-          // User clicked into a section someone else is editing.
           setLockedNotice(lock);
           if (canEditRef.current && !redirectingRef.current) {
             redirectingRef.current = true;
@@ -359,14 +373,9 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
           top: coords.top - rect.top + editorElement.scrollTop,
           left: coords.left - rect.left,
           height: coords.bottom - coords.top,
-          // Absolute ProseMirror doc position, used by receivers as a last-resort
-          // anchor to resolve the caret via coordsAtPos when ids/indexes drift.
           pos: selection.from,
         };
 
-        // Send the block identity (+ a small offset within the block) so the
-        // receiving editor can resolve the caret position against its OWN DOM.
-        // This keeps the remote caret on the same block the lock indicator uses.
         const cursorBlockId = getBlockIdAtSelection();
         if (cursorBlockId) {
           const blockEl = editorElement.querySelector<HTMLElement>(`[data-block-id="${cursorBlockId}"]`);
@@ -389,32 +398,26 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
           cursor: cursorPayload,
         });
       } catch {
-        // coordsAtPos might fail
+        // Ignored
       }
     },
   });
 
-  // Keep a ref pointing at the live editor so stable socket handlers always
-  // operate on the current instance (the remote-merge helpers read this ref).
   useEffect(() => {
     editorRef.current = editor;
   }, [editor]);
 
-  // Pending fetch html when editor not yet ready (mount race). Applied once editor mounts.
-  const pendingFetchHtmlRef = useRef<string | null>(null);
-
-  // Fetch the full document (with blocks + collaborators) on mount — DB is source of truth.
+  // Primary Document Loading: MongoDB is the single source of truth
   useEffect(() => {
     let cancelled = false;
     setDocLoading(true);
+    isInitialLoadingRef.current = true;
 
-    // Always fetch from DB as the source of truth when opening a document.
-    // The only exception is if remote socket content was already applied and
-    // is definitively newer — but for persistence, DB content must win on reopen.
     documentService.getDocumentById(doc.id).then((fullDoc) => {
       if (cancelled || !fullDoc) return;
       setLocalDoc(fullDoc);
       setTitle(fullDoc.title);
+      lastSavedTitleRef.current = fullDoc.title;
 
       const myId = userRef.current?.id;
       if (myId) {
@@ -425,40 +428,25 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         if (role) setDocRole(role);
       }
 
-      // Load the latest persisted content from MongoDB / DB
-      const html = blocksToHtml(fullDoc.blocks);
+      const html = blocksToHtml(fullDoc.blocks, fullDoc.title);
 
       if (editor) {
-        // Always prefer DB content on initial open — this is the core persistence fix.
-        // DB is the source of truth when reopening a document.
         isRemoteUpdate.current = true;
         editor.commands.setContent(html, { emitUpdate: false });
         isRemoteUpdate.current = false;
         lastSentHtmlRef.current = html;
-      } else {
-        // Editor not ready yet (mount race) — store pending HTML for later application
-        pendingFetchHtmlRef.current = html;
+        lastSavedHtmlRef.current = html;
+        isInitialLoadingRef.current = false;
+        setDocLoading(false);
       }
     }).catch(() => {
-      // Fetch failed — keep the prop-initted state; do not overwrite with empty placeholder
+      // Keep state resilient
     }).finally(() => {
       if (!cancelled) setDocLoading(false);
     });
+
     return () => { cancelled = true; };
   }, [doc.id, editor]);
-
-  // If fetch completed before editor was ready, apply pending html once editor mounts
-  useEffect(() => {
-    if (editor && pendingFetchHtmlRef.current) {
-      const html = pendingFetchHtmlRef.current;
-      pendingFetchHtmlRef.current = null;
-      isRemoteUpdate.current = true;
-      editor.commands.setContent(html, { emitUpdate: false });
-      isRemoteUpdate.current = false;
-      lastSentHtmlRef.current = html;
-      setDocLoading(false);
-    }
-  }, [editor]);
 
   // Socket.IO connection
   useEffect(() => {
@@ -499,22 +487,19 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
     socket.on('document:content-updated', (data: { userId: string; html: string }) => {
       if (typeof data.html !== 'string') return;
-      // Allow same-user multi-tab sync: server already excludes sender socket via socket.to(),
-      // so we must NOT filter by userId here. Otherwise second tab of same account never receives.
       scheduleRemoteApply(data.html);
     });
 
     socket.on('document:title-updated', (data: { userId: string; title: string }) => {
       if (data.userId !== user?.id) {
         setTitle(data.title);
+        lastSavedTitleRef.current = data.title;
         setLocalDoc(prev => ({ ...prev, title: data.title }));
       }
     });
 
     socket.on('block:locked', (data: { blockId: string; lock: any }) => {
       const l = data.lock;
-      // Never render our own lock — a user must not see their own remote cursor
-      // or a fake "X is typing" indicator caused by their own editing.
       if (l.userId === userRef.current?.id) return;
       setLocks(prev => ({
         ...prev,
@@ -535,10 +520,6 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       });
     });
 
-    // A collaborator's role changed (owner updated it in the Share modal).
-    // Update our local role + collaborator list so editing toggles immediately,
-    // with no refresh needed. Persisted permission is already enforced by the
-    // backend — this just keeps the UI in sync in real time.
     socket.on('document:role-updated', (data: { documentId: string; userId: string; role: string }) => {
       if (data.documentId !== doc.id || data.userId !== userRef.current?.id) return;
       const newRole = data.role;
@@ -551,7 +532,6 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       }));
     });
 
-    // The owner removed this user from the document — show the revoked screen.
     socket.on('document:access-revoked', (data: { documentId: string; userId: string }) => {
       if (data.documentId !== doc.id || data.userId !== userRef.current?.id) return;
       setAccessRevoked(true);
@@ -582,16 +562,18 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     }
   }, [editor, isReadOnly]);
 
-  // Clear pending autosave timer on unmount to prevent saves from firing
-  // after the editor component is destroyed (document close, navigation, etc.)
+  // Flush on page unload or component unmount
   useEffect(() => {
-    return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = null;
-      }
+    const handleBeforeUnload = () => {
+      flushPendingSave();
     };
-  }, []);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      flushPendingSave();
+    };
+  }, [flushPendingSave]);
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value;
@@ -609,6 +591,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       setSaveStatus('saving');
       try {
         await documentService.renameDocument(doc.id, newTitle);
+        lastSavedTitleRef.current = newTitle;
         setSaveStatus('saved');
       } catch {
         setSaveStatus('unsaved');
@@ -675,19 +658,16 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     }
   };
 
-  // Guard: if the owner removed this user while the doc is open, stop rendering
-  // an editable surface. The backend has already kicked the socket out of the
-  // room and rejects every subsequent request — this is purely the UI reacting.
   if (accessRevoked) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#FAF8F5]">
-        <div className="text-center max-w-sm bg-white border border-[#E7E5E4] rounded-2xl p-8 shadow-2xl">
+      <div className="flex h-screen items-center justify-center bg-[#FAF8F5] dark:bg-[#181614]">
+        <div className="text-center max-w-sm bg-white dark:bg-[#221F1D] border border-[#E7E5E4] dark:border-[#383430] rounded-2xl p-8 shadow-2xl">
           <Lock className="w-8 h-8 text-[#DC2626] mx-auto mb-3" />
-          <h2 className="font-serif-editorial text-xl font-bold text-[#1C1917] mb-1">Access Revoked</h2>
-          <p className="text-sm text-[#57534E] mb-6">You no longer have access to this document.</p>
+          <h2 className="font-serif-editorial text-xl font-bold text-[#1C1917] dark:text-[#FAF8F5] mb-1">Access Revoked</h2>
+          <p className="text-sm text-[#57534E] dark:text-[#A8A29E] mb-6">You no longer have access to this document.</p>
           <button
-            onClick={onBack}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[#FAF8F5] bg-[#1C1917] hover:bg-[#292524] rounded-xl shadow-xs transition-colors"
+            onClick={handleBack}
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[#FAF8F5] bg-[#1C1917] hover:bg-[#292524] dark:bg-[#D97706] dark:hover:bg-[#B45309] rounded-xl shadow-xs transition-colors"
           >
             <ArrowLeft className="w-4 h-4" /> Back to Dashboard
           </button>
@@ -697,19 +677,26 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   }
 
   return (
-    <div className="flex flex-col h-screen bg-[#FAF8F5] overflow-hidden">
-      <header className="bg-[#FFFFFF] border-b border-[#E7E5E4] px-4 py-2.5 flex items-center justify-between shrink-0 shadow-2xs z-20">
+    <div className="flex flex-col h-screen bg-[#FAF8F5] dark:bg-[#181614] overflow-hidden transition-colors">
+      <header className="bg-[#FFFFFF] dark:bg-[#221F1D] border-b border-[#E7E5E4] dark:border-[#383430] px-4 py-2.5 flex items-center justify-between shrink-0 shadow-2xs z-20">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <button onClick={onBack} className="p-2 rounded-lg text-[#57534E] hover:bg-[#F4F0EA] hover:text-[#1C1917] transition-colors shrink-0" title="Back to Dashboard">
+          <button onClick={handleBack} className="p-2 rounded-lg text-[#57534E] dark:text-[#A8A29E] hover:bg-[#F4F0EA] dark:hover:bg-[#2B2724] hover:text-[#1C1917] dark:hover:text-[#FAF8F5] transition-colors shrink-0" title="Back to Dashboard">
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div className="min-w-0 flex-1 max-w-md">
-            <input type="text" value={title} onChange={handleTitleChange} className="w-full bg-transparent text-sm font-semibold text-[#1C1917] focus:outline-none border-b border-transparent hover:border-[#E7E5E4] focus:border-[#D97706] transition-colors pb-0.5 truncate" placeholder="Document title" readOnly={isReadOnly} />
+            <input
+              type="text"
+              value={title}
+              onChange={handleTitleChange}
+              className="w-full bg-transparent text-sm font-semibold text-[#1C1917] dark:text-[#FAF8F5] focus:outline-none border-b border-transparent hover:border-[#E7E5E4] dark:hover:border-[#383430] focus:border-[#D97706] transition-colors pb-0.5 truncate"
+              placeholder="Document title"
+              readOnly={isReadOnly}
+            />
           </div>
           <div className="shrink-0">
             {saveStatus === 'saved' && <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#10B981]"><CheckCircle2 className="w-3.5 h-3.5" /> Saved</span>}
             {saveStatus === 'saving' && <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#D97706]"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</span>}
-            {saveStatus === 'unsaved' && <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#78716C]"><Cloud className="w-3.5 h-3.5" /> Unsaved</span>}
+            {saveStatus === 'unsaved' && <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#78716C] dark:text-[#A8A29E]"><Cloud className="w-3.5 h-3.5" /> Unsaved</span>}
           </div>
         </div>
 
@@ -717,12 +704,12 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
           {onlineUsers.length > 0 && (
             <div className="flex -space-x-2 items-center">
               {onlineUsers.slice(0, 4).map(u => (
-                <div key={u.userId} className="w-7 h-7 rounded-full border-2 border-white text-[10px] font-bold flex items-center justify-center text-white shadow-xs" style={{ backgroundColor: u.color }} title={`${u.name} (online)`}>
+                <div key={u.userId} className="w-7 h-7 rounded-full border-2 border-white dark:border-[#221F1D] text-[10px] font-bold flex items-center justify-center text-white shadow-xs" style={{ backgroundColor: u.color }} title={`${u.name} (online)`}>
                   {u.name[0]}
                 </div>
               ))}
               {onlineUsers.length > 4 && (
-                <div className="w-7 h-7 rounded-full border-2 border-white bg-[#E7E5E4] text-[10px] font-bold flex items-center justify-center text-[#57534E]">+{onlineUsers.length - 4}</div>
+                <div className="w-7 h-7 rounded-full border-2 border-white dark:border-[#221F1D] bg-[#E7E5E4] dark:bg-[#383430] text-[10px] font-bold flex items-center justify-center text-[#57534E] dark:text-[#FAF8F5]">+{onlineUsers.length - 4}</div>
               )}
             </div>
           )}
@@ -733,16 +720,16 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <button onClick={() => setActivePanel(activePanel === 'history' ? 'none' : 'history')} className={`p-2 rounded-lg transition-colors ${activePanel === 'history' ? 'bg-[#1C1917] text-[#FAF8F5]' : 'text-[#57534E] hover:bg-[#F4F0EA] hover:text-[#1C1917]'}`} title="Version History">
+          <button onClick={() => setActivePanel(activePanel === 'history' ? 'none' : 'history')} className={`p-2 rounded-lg transition-colors ${activePanel === 'history' ? 'bg-[#1C1917] dark:bg-[#D97706] text-[#FAF8F5]' : 'text-[#57534E] dark:text-[#A8A29E] hover:bg-[#F4F0EA] dark:hover:bg-[#2B2724] hover:text-[#1C1917] dark:hover:text-[#FAF8F5]'}`} title="Version History">
             <History className="w-4 h-4" />
           </button>
-          <button onClick={() => setActivePanel(activePanel === 'chat' ? 'none' : 'chat')} className={`p-2 rounded-lg transition-colors ${activePanel === 'chat' ? 'bg-[#1C1917] text-[#FAF8F5]' : 'text-[#57534E] hover:bg-[#F4F0EA] hover:text-[#1C1917]'}`} title="Toggle Chat">
+          <button onClick={() => setActivePanel(activePanel === 'chat' ? 'none' : 'chat')} className={`p-2 rounded-lg transition-colors ${activePanel === 'chat' ? 'bg-[#1C1917] dark:bg-[#D97706] text-[#FAF8F5]' : 'text-[#57534E] dark:text-[#A8A29E] hover:bg-[#F4F0EA] dark:hover:bg-[#2B2724] hover:text-[#1C1917] dark:hover:text-[#FAF8F5]'}`} title="Toggle Chat">
             <MessageSquare className="w-4 h-4" />
           </button>
-          <button onClick={() => setShareOpen(true)} className="hidden sm:inline-flex items-center gap-1.5 bg-[#F4F0EA] hover:bg-[#E7E5E4] text-[#1C1917] text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#E7E5E4] transition-colors">
+          <button onClick={() => setShareOpen(true)} className="hidden sm:inline-flex items-center gap-1.5 bg-[#F4F0EA] dark:bg-[#2B2724] hover:bg-[#E7E5E4] dark:hover:bg-[#332F2B] text-[#1C1917] dark:text-[#FAF8F5] text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#E7E5E4] dark:border-[#383430] transition-colors">
             <Share2 className="w-3.5 h-3.5" /> Share
           </button>
-          <button onClick={() => setExportOpen(true)} className="hidden sm:inline-flex items-center gap-1.5 bg-[#F4F0EA] hover:bg-[#E7E5E4] text-[#1C1917] text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#E7E5E4] transition-colors">
+          <button onClick={() => setExportOpen(true)} className="hidden sm:inline-flex items-center gap-1.5 bg-[#F4F0EA] dark:bg-[#2B2724] hover:bg-[#E7E5E4] dark:hover:bg-[#332F2B] text-[#1C1917] dark:text-[#FAF8F5] text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#E7E5E4] dark:border-[#383430] transition-colors">
             <Download className="w-3.5 h-3.5" /> Export
           </button>
         </div>
@@ -751,30 +738,30 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       <EditorToolbar editor={editor} readOnly={isReadOnly} />
 
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 overflow-y-auto bg-[#FAF8F5] relative flex flex-col">
+        <div className="flex-1 overflow-y-auto bg-[#FAF8F5] dark:bg-[#181614] relative flex flex-col">
           {isReadOnly && docRole === 'VIEWER' && (
-            <div className="bg-[#EFF6FF] border-b border-[#3B82F6]/30 px-4 py-2.5 flex items-center justify-center gap-2 text-xs font-semibold text-[#1D4ED8] shrink-0">
+            <div className="bg-[#EFF6FF] dark:bg-[#1E293B] border-b border-[#3B82F6]/30 px-4 py-2.5 flex items-center justify-center gap-2 text-xs font-semibold text-[#1D4ED8] dark:text-[#93C5FD] shrink-0">
               <Eye className="w-4 h-4 text-[#3B82F6]" /> Read-Only Mode — You have view-only permissions.
             </div>
           )}
           {selectedVersionId !== 'v_curr' && (
-            <div className="bg-[#FEF3C7] border-b border-[#F59E0B] px-4 py-2.5 flex items-center justify-center gap-3 shrink-0">
-              <span className="text-sm text-[#92400E] font-medium">Previewing an older version of this document</span>
-              <button onClick={() => setSelectedVersionId('v_curr')} className="text-xs font-bold text-[#92400E] hover:text-[#78350F] underline underline-offset-2">Back to current</button>
+            <div className="bg-[#FEF3C7] dark:bg-[#422006] border-b border-[#F59E0B] px-4 py-2.5 flex items-center justify-center gap-3 shrink-0">
+              <span className="text-sm text-[#92400E] dark:text-[#FDE68A] font-medium">Previewing an older version of this document</span>
+              <button onClick={() => setSelectedVersionId('v_curr')} className="text-xs font-bold text-[#92400E] dark:text-[#FDE68A] hover:underline underline-offset-2">Back to current</button>
             </div>
           )}
           {docLoading ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="flex flex-col items-center gap-3">
                 <Loader2 className="w-6 h-6 animate-spin text-[#D97706]" />
-                <span className="text-xs text-[#78716C] font-medium">Loading document...</span>
+                <span className="text-xs text-[#78716C] dark:text-[#A8A29E] font-medium">Loading document...</span>
               </div>
             </div>
           ) : (
-            <div className="max-w-4xl mx-auto my-8 bg-[#FFFFFF] rounded-2xl border border-[#E7E5E4] shadow-paper relative w-full flex-1">
+            <div className="max-w-4xl mx-auto my-8 bg-[#FFFFFF] dark:bg-[#221F1D] rounded-2xl border border-[#E7E5E4] dark:border-[#383430] shadow-paper relative w-full flex-1">
               <EditorContent editor={editor} />
               {lockedNotice && (
-                <div className="absolute top-4 right-4 z-20 flex items-center gap-2 bg-[#1C1917] text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-xl animate-in fade-in duration-200">
+                <div className="absolute top-4 right-4 z-20 flex items-center gap-2 bg-[#1C1917] dark:bg-[#2B2724] text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-xl animate-in fade-in duration-200">
                   <Lock className="w-3.5 h-3.5 shrink-0" style={{ color: lockedNotice.color }} />
                   This section is locked by {lockedNotice.name} — start editing in the next section.
                 </div>
@@ -807,19 +794,21 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
               try {
                 const version = await documentService.getVersion(doc.id, versionId);
                 if (version && editor) {
-const html = blocksToHtml(Array.isArray(version.content) ? version.content : []);
-                isRemoteUpdate.current = true;
-                editor.commands.setContent(html, { emitUpdate: false });
-                isRemoteUpdate.current = false;
-                lastSentHtmlRef.current = html;
-                socketRef.current?.emit('document:content-update', {
-                  documentId: doc.id,
-                  html,
-                });
+                  const html = blocksToHtml(Array.isArray(version.content) ? version.content : [], localDoc.title);
+                  isRemoteUpdate.current = true;
+                  editor.commands.setContent(html, { emitUpdate: false });
+                  isRemoteUpdate.current = false;
+                  lastSentHtmlRef.current = html;
+                  socketRef.current?.emit('document:content-update', {
+                    documentId: doc.id,
+                    html,
+                  });
                   await documentService.saveContent(doc.id, htmlToBlocks(html));
                   setSaveStatus('saved');
                 }
-              } catch {}
+              } catch (err) {
+                console.error('Failed to restore version:', err);
+              }
               setSelectedVersionId('v_curr');
               setActivePanel('none');
             }}
@@ -845,9 +834,8 @@ const html = blocksToHtml(Array.isArray(version.content) ? version.content : [])
         editor={editor}
       />
 
-      {/* Error Toast */}
       {error && (
-        <div className="fixed bottom-6 right-6 z-50 max-w-sm bg-[#FEF2F2] text-[#DC2626] p-4 rounded-xl shadow-2xl border border-[#FECACA] flex items-start gap-3 animate-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm bg-[#FEF2F2] dark:bg-[#450A0A] text-[#DC2626] dark:text-[#FCA5A5] p-4 rounded-xl shadow-2xl border border-[#FECACA] dark:border-[#7F1D1D] flex items-start gap-3 animate-in slide-in-from-bottom-4 duration-300">
           <p className="flex-1 text-xs font-medium">{error}</p>
           <button onClick={() => setError(null)} className="text-[#DC2626]/60 hover:text-[#DC2626]">
             <span className="text-sm font-bold">×</span>

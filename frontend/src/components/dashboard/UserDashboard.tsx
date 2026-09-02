@@ -154,8 +154,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   // Handlers
   const handleCreateDoc = async (title: string, type: DocumentItem['type']) => {
     try {
-      await documentService.createDocument(title, type);
+      const newDoc = await documentService.createDocument(title, type);
       await reload();
+      onOpenDoc(newDoc);
     } catch (err: any) {
       showError(err, 'Failed to create document');
     }
