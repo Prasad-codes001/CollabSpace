@@ -16,55 +16,115 @@
   }
 
   html.dark body {
-    background-color: #0C0A09;
+    background-color: #121110;
     color: #FAF8F5;
   }
 }
 
-/* Dark mode: override hardcoded light colors with dark equivalents.
-   Uses html.dark + Tailwind arbitrary value escaping. Keeps minimal changes. */
+/* Dark mode: comprehensive, polished design system hierarchy */
 @layer utilities {
-  html.dark .bg-\[\#FAF8F5\] { background-color: #1C1917 !important; }
-  html.dark .bg-\[\#FFFFFF\] { background-color: #292524 !important; }
-  html.dark .bg-white { background-color: #292524 !important; }
-  html.dark .bg-\[\#F4F0EA\] { background-color: #2E2A28 !important; }
-  html.dark .bg-\[\#EFECE8\] { background-color: #2E2A28 !important; }
+  /* Background colors */
+  html.dark .bg-\[\#FAF8F5\] { background-color: #181614 !important; }
+  html.dark .bg-\[\#FAF8F5\]\/80 { background-color: rgba(24, 22, 20, 0.85) !important; }
+  html.dark .bg-\[\#FAF8F5\]\/60 { background-color: rgba(18, 17, 16, 0.75) !important; }
+  html.dark .bg-\[\#FAF8F5\]\/50 { background-color: rgba(24, 22, 20, 0.5) !important; }
+  html.dark .bg-\[\#FFFFFF\] { background-color: #221F1D !important; }
+  html.dark .bg-white { background-color: #221F1D !important; }
+  html.dark .bg-\[\#F4F0EA\] { background-color: #2B2724 !important; }
+  html.dark .bg-\[\#F4F0EA\]\/80 { background-color: rgba(43, 39, 36, 0.85) !important; }
+  html.dark .bg-\[\#EFECE8\] { background-color: #2B2724 !important; }
+  html.dark .bg-\[\#E7E5E4\] { background-color: #36312D !important; }
+  html.dark .bg-\[\#E7E5E4\]\/60 { background-color: rgba(54, 49, 45, 0.6) !important; }
+  html.dark .bg-\[\#E7E5E4\]\/50 { background-color: rgba(54, 49, 45, 0.5) !important; }
+  html.dark .bg-\[\#F5F5F4\] { background-color: #2B2724 !important; }
   html.dark .bg-\[\#FEF2F2\] { background-color: #450A0A !important; }
+  html.dark .bg-\[\#FEE2E2\] { background-color: #450A0A !important; }
   html.dark .bg-\[\#EFF6FF\] { background-color: #1E293B !important; }
   html.dark .bg-\[\#FEF3C7\] { background-color: #422006 !important; }
+  html.dark .bg-\[\#DBEAFE\] { background-color: #1E293B !important; }
+  html.dark .bg-\[\#EDE9FE\] { background-color: #2E1065 !important; }
+  html.dark .bg-\[\#DCFCE7\] { background-color: #064E3B !important; }
 
+  /* Hover backgrounds */
+  html.dark .hover\:bg-\[\#FAF8F5\]:hover { background-color: #2B2724 !important; }
+  html.dark .hover\:bg-\[\#F4F0EA\]:hover { background-color: #2B2724 !important; }
+  html.dark .hover\:bg-\[\#E7E5E4\]:hover { background-color: #332F2B !important; }
+  html.dark .hover\:bg-\[\#292524\]:hover { background-color: #383430 !important; }
+  html.dark .hover\:bg-\[\#FEF2F2\]:hover { background-color: #5C1010 !important; }
+  html.dark .hover\:bg-\[\#FEE2E2\]:hover { background-color: #5C1010 !important; }
+  html.dark .hover\:bg-\[\#FAF8F5\]\/50:hover { background-color: rgba(43, 39, 36, 0.5) !important; }
+
+  /* Text colors */
   html.dark .text-\[\#1C1917\] { color: #FAF8F5 !important; }
   html.dark .text-\[\#57534E\] { color: #D6D3D1 !important; }
   html.dark .text-\[\#78716C\] { color: #A8A29E !important; }
-  html.dark .text-\[\#A8A29E\] { color: #79716B !important; }
-  html.dark .text-\[\#44403C\] { color: #D6D3D1 !important; }
+  html.dark .text-\[\#A8A29E\] { color: #8C857F !important; }
+  html.dark .text-\[\#44403C\] { color: #E7E5E4 !important; }
+  html.dark .text-\[\#D6D3D1\] { color: #78716C !important; }
   html.dark .text-\[\#1D4ED8\] { color: #93C5FD !important; }
   html.dark .text-\[\#92400E\] { color: #FDE68A !important; }
+  html.dark .text-\[\#1E40AF\] { color: #93C5FD !important; }
+  html.dark .text-\[\#5B21B6\] { color: #DDD6FE !important; }
+  html.dark .text-\[\#991B1B\] { color: #FCA5A5 !important; }
+  html.dark .text-\[\#14532D\] { color: #6EE7B7 !important; }
+  html.dark .text-\[\#047857\] { color: #6EE7B7 !important; }
 
-  html.dark .border-\[\#E7E5E4\] { border-color: #44403C !important; }
-  html.dark .border-\[\#F5F5F4\] { border-color: #44403C !important; }
-  html.dark .border-\[\#D6D3D1\] { border-color: #57534E !important; }
+  /* Hover text */
+  html.dark .hover\:text-\[\#1C1917\]:hover { color: #FAF8F5 !important; }
+  html.dark .hover\:text-\[\#FAF8F5\]:hover { color: #FFFFFF !important; }
+  html.dark .hover\:text-\[\#D97706\]:hover { color: #F59E0B !important; }
+  html.dark .group:hover .group-hover\:text-\[\#1C1917\] { color: #FAF8F5 !important; }
+  html.dark .group:hover .group-hover\:text-\[\#D97706\] { color: #F59E0B !important; }
+
+  /* Borders */
+  html.dark .border-\[\#E7E5E4\] { border-color: #383430 !important; }
+  html.dark .border-\[\#E7E5E4\]\/50 { border-color: rgba(56, 52, 48, 0.5) !important; }
+  html.dark .border-\[\#F5F5F4\] { border-color: #2B2724 !important; }
+  html.dark .border-\[\#D6D3D1\] { border-color: #443E38 !important; }
+  html.dark .border-\[\#1C1917\] { border-color: #D97706 !important; }
   html.dark .border-\[\#FCA5A5\] { border-color: #7F1D1D !important; }
+  html.dark .border-\[\#FECACA\] { border-color: #7F1D1D !important; }
   html.dark .border-\[\#3B82F6\]\/30 { border-color: rgb(59 130 246 / 0.3) !important; }
-  html.dark .border-\[\#F59E0B\] { border-color: #92400E !important; }
+  html.dark .border-\[\#F59E0B\] { border-color: #D97706 !important; }
+  html.dark .hover\:border-\[\#D6D3D1\]:hover { border-color: #57534E !important; }
+  html.dark .hover\:border-\[\#E7E5E4\]:hover { border-color: #443E38 !important; }
 
-  html.dark ::-webkit-scrollbar-track { background: #1C1917; }
-  html.dark ::-webkit-scrollbar-thumb { background: #44403C; }
-  html.dark ::-webkit-scrollbar-thumb:hover { background: #57534E; }
+  /* Divide colors */
+  html.dark .divide-\[\#F5F5F4\] > * + * { border-color: #2B2724 !important; }
+  html.dark .divide-\[\#E7E5E4\] > * + * { border-color: #383430 !important; }
+
+  /* Form controls */
+  html.dark input::placeholder { color: #8C857F !important; }
+  html.dark textarea::placeholder { color: #8C857F !important; }
+  html.dark select option { background-color: #221F1D !important; color: #FAF8F5 !important; }
+  html.dark .focus\:ring-\[\#1C1917\]:focus { --tw-ring-color: #D97706 !important; }
+
+  /* Scrollbars */
+  html.dark ::-webkit-scrollbar-track { background: #181614; }
+  html.dark ::-webkit-scrollbar-thumb { background: #383430; border-radius: 9999px; }
+  html.dark ::-webkit-scrollbar-thumb:hover { background: #443E38; }
   html.dark ::selection { background-color: #92400E; color: #FAF8F5; }
 
   /* ProseMirror dark */
+  html.dark .ProseMirror { color: #E7E5E4 !important; }
   html.dark .ProseMirror h1,
   html.dark .ProseMirror h2,
   html.dark .ProseMirror h3 { color: #FAF8F5 !important; }
-  html.dark .ProseMirror p { color: #D6D3D1 !important; }
-  html.dark .ProseMirror blockquote { background-color: #1C1917 !important; border-left-color: #D97706 !important; color: #D6D3D1 !important; }
-  html.dark .ProseMirror code { background-color: #44403C !important; color: #FDBA74 !important; }
-  html.dark .ProseMirror pre { background-color: #0C0A09 !important; color: #FAF8F5 !important; }
+  html.dark .ProseMirror p { color: #E7E5E4 !important; }
+  html.dark .ProseMirror blockquote { background-color: #181614 !important; border-left-color: #D97706 !important; color: #D6D3D1 !important; }
+  html.dark .ProseMirror code { background-color: #2B2724 !important; color: #FDBA74 !important; border: 1px solid #383430; }
+  html.dark .ProseMirror pre { background-color: #121110 !important; color: #FAF8F5 !important; border: 1px solid #383430; }
   html.dark .ProseMirror a { color: #F59E0B !important; }
+  html.dark .ProseMirror p.is-editor-empty:first-child::before { color: #78716C !important; }
 
-  html.dark .skeleton-shimmer { background: linear-gradient(90deg, #292524 25%, #44403C 50%, #292524 75%); background-size: 200% 100%; }
-  html.dark .glass { background: rgba(28,25,23,0.8); border-color: rgba(68,64,60,0.6); }
+  /* Shadows in dark mode */
+  html.dark .shadow-editorial { box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4), 0 2px 6px -1px rgba(0, 0, 0, 0.3) !important; }
+  html.dark .shadow-editorial-hover { box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.6), 0 4px 12px -2px rgba(0, 0, 0, 0.4) !important; }
+  html.dark .shadow-paper { box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.5) !important; }
+
+  /* Shimmer & Glass in dark mode */
+  html.dark .skeleton-shimmer { background: linear-gradient(90deg, #221F1D 25%, #2D2926 50%, #221F1D 75%) !important; background-size: 200% 100% !important; }
+  html.dark .glass { background: rgba(34, 31, 29, 0.85) !important; border-color: rgba(56, 52, 48, 0.7) !important; }
 }
 
 /* Custom Typography & Utility Classes */
