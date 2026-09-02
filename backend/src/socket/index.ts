@@ -337,14 +337,16 @@ export function setupSocket(server: HttpServer): Server {
         html,
       });
 
-      // Debounced save to MongoDB
+      // Debounced save to MongoDB — preserve existing content structure
       const existingTimer = saveTimers.get(documentId);
       if (existingTimer) clearTimeout(existingTimer);
 
       saveTimers.set(documentId, setTimeout(async () => {
         try {
-          // We save the raw HTML — the frontend is the source of truth during editing
-          // The backend stores it so it can be loaded on next session
+          // Use the same canonical block format as the REST save path:
+          // [{ id: 'blk_main', type: 'paragraph', content: html }]
+          // findByIdAndUpdate replaces the content field entirely, which is correct
+          // since the frontend always converts to this single-block format.
           await Document.findByIdAndUpdate(documentId, {
             content: [{ id: 'blk_main', type: 'paragraph', content: html }],
             updatedAt: new Date(),

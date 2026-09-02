@@ -407,13 +407,15 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   useEffect(() => {
     let cancelled = false;
     setDocLoading(true);
-    // Reset per-document state: new doc means stale remote flag must not suppress its DB load.
-    appliedRemoteRef.current = false;
-    pendingFetchHtmlRef.current = null;
+
+    // Always fetch from DB as the source of truth when opening a document.
+    // The only exception is if remote socket content was already applied and
+    // is definitively newer — but for persistence, DB content must win on reopen.
     documentService.getDocumentById(doc.id).then((fullDoc) => {
       if (cancelled || !fullDoc) return;
       setLocalDoc(fullDoc);
       setTitle(fullDoc.title);
+
       const myId = userRef.current?.id;
       if (myId) {
         const role =
@@ -422,25 +424,24 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
             : (fullDoc.collaborators.find(c => c.id === myId)?.role || null);
         if (role) setDocRole(role);
       }
+
+      // Load the latest persisted content from MongoDB / DB
       const html = blocksToHtml(fullDoc.blocks);
-      // Always prefer DB content on initial open; only suppress if we already have
-      // fresher live content via socket (appliedRemoteRef) AND fetch html equals default placeholder.
-      // Never overwrite live edits with stale DB, but never keep default placeholder when DB has real content.
-      const isDefaultHtml = html === '<h1>Untitled Document</h1><p>Start writing here...</p>';
-      const shouldApply = !appliedRemoteRef.current || !isDefaultHtml;
-      if (editor && shouldApply) {
-        // A remote socket update may already have applied while this REST call
-        // was in flight — only suppress if remote is fresher than DB.
-        if (!appliedRemoteRef.current || html !== lastSentHtmlRef.current) {
-          isRemoteUpdate.current = true;
-          editor.commands.setContent(html, { emitUpdate: false });
-          isRemoteUpdate.current = false;
-          lastSentHtmlRef.current = html;
-        }
-      } else if (!editor && shouldApply) {
+
+      if (editor) {
+        // Always prefer DB content on initial open — this is the core persistence fix.
+        // DB is the source of truth when reopening a document.
+        isRemoteUpdate.current = true;
+        editor.commands.setContent(html, { emitUpdate: false });
+        isRemoteUpdate.current = false;
+        lastSentHtmlRef.current = html;
+      } else {
+        // Editor not ready yet (mount race) — store pending HTML for later application
         pendingFetchHtmlRef.current = html;
       }
-    }).catch(() => {}).finally(() => {
+    }).catch(() => {
+      // Fetch failed — keep the prop-initted state; do not overwrite with empty placeholder
+    }).finally(() => {
       if (!cancelled) setDocLoading(false);
     });
     return () => { cancelled = true; };
@@ -448,7 +449,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
   // If fetch completed before editor was ready, apply pending html once editor mounts
   useEffect(() => {
-    if (editor && pendingFetchHtmlRef.current && !appliedRemoteRef.current) {
+    if (editor && pendingFetchHtmlRef.current) {
       const html = pendingFetchHtmlRef.current;
       pendingFetchHtmlRef.current = null;
       isRemoteUpdate.current = true;
@@ -580,6 +581,17 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       editor.setEditable(!isReadOnly);
     }
   }, [editor, isReadOnly]);
+
+  // Clear pending autosave timer on unmount to prevent saves from firing
+  // after the editor component is destroyed (document close, navigation, etc.)
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value;
